@@ -2,6 +2,7 @@
 const STORAGE_KEY = 'mept_all_users';
 
 // ======================== USER AUTH ========================
+// ======================== USER LOGIN (localStorage) ========================
 function userLogin() {
     const username = document.getElementById('loginUsername').value.trim();
     const key = document.getElementById('loginKey').value.trim();
@@ -9,7 +10,7 @@ function userLogin() {
         document.getElementById('loginStatus').innerHTML = '<p style="color:red;">⚠️ Username နှင့် Key ထည့်ပါ</p>';
         return;
     }
-    const users = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const users = JSON.parse(localStorage.getItem('mept_all_users') || '[]');
     const user = users.find(u => u.username === username && u.password === key);
     if (!user) {
         document.getElementById('loginStatus').innerHTML = '<p style="color:red;">❌ Username (သို့) Key မှားယွင်းနေပါသည်</p>';
