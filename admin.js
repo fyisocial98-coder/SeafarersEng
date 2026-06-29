@@ -1,20 +1,5 @@
+// ======================== ADMIN PANEL (Firebase) ========================
 const ADMIN = { user: "zkp", pass: "zello@1500" };
-const STORAGE_KEY = 'mept_all_users';
-
-function seedSampleStudent() {
-    let users = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (users.length === 0) {
-        users.push({
-            username: "student1",
-            password: "stu1",
-            expireDate: "2026-12-31",
-            createdAt: new Date().toISOString()
-        });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-        return true;
-    }
-    return false;
-}
 
 function adminLogin() {
     const u = document.getElementById('adminUsername').value.trim();
@@ -22,9 +7,10 @@ function adminLogin() {
     if (u === ADMIN.user && p === ADMIN.pass) {
         document.getElementById('adminAuth').style.display = 'none';
         document.getElementById('adminPanel').style.display = 'block';
-        seedSampleStudent();
-        loadUsers();
-    } else { alert('❌ Invalid credentials'); }
+        loadUsers(); // Firebase မှ ကျောင်းသားစာရင်းကို ဆွဲယူမည်
+    } else {
+        alert('❌ Invalid credentials');
+    }
 }
 
 function adminLogout() {
@@ -32,41 +18,74 @@ function adminLogout() {
     document.getElementById('adminPanel').style.display = 'none';
 }
 
+// ======================== ADD USER (Firebase) ========================
 function addUser() {
     const username = document.getElementById('newUsername').value.trim();
     const password = document.getElementById('newPassword').value.trim();
     const expireDate = document.getElementById('expireDate').value;
-    if (!username || !password || !expireDate) { alert('⚠️ အားလုံးဖြည့်ပါ'); return; }
-    let users = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (users.find(u => u.username === username)) { alert('⚠️ ဤ Username ရှိပြီးသားဖြစ်သည်'); return; }
-    users.push({ username, password, expireDate, createdAt: new Date().toISOString() });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-    alert('✅ ကျောင်းသားထည့်ပြီးပါပြီ');
-    document.getElementById('newUsername').value = '';
-    document.getElementById('newPassword').value = '';
-    document.getElementById('expireDate').value = '';
-    loadUsers();
+    if (!username || !password || !expireDate) {
+        alert('⚠️ အားလုံးဖြည့်ပါ');
+        return;
+    }
+    // Firebase တွင် သိမ်းဆည်းခြင်း
+    db.ref('users/' + username).set({
+        username: username,
+        password: password,
+        expireDate: expireDate,
+        createdAt: new Date().toISOString()
+    }).then(() => {
+        alert('✅ ကျောင်းသားထည့်ပြီးပါပြီ');
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('expireDate').value = '';
+        loadUsers(); // စာရင်းပြန်တင်ရန်
+    }).catch(error => {
+        alert('❌ ထည့်သွင်း၍မရပါ: ' + error.message);
+    });
 }
 
+// ======================== DELETE USER (Firebase) ========================
 function deleteUser(username) {
     if (!confirm(`"${username}" ကိုဖျက်မှာသေချာလား?`)) return;
-    let users = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    users = users.filter(u => u.username !== username);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-    loadUsers();
+    db.ref('users/' + username).remove()
+        .then(() => {
+            alert('🗑 ဖျက်ပြီးပါပြီ');
+            loadUsers();
+        })
+        .catch(error => {
+            alert('❌ ဖျက်၍မရပါ: ' + error.message);
+        });
 }
 
+// ======================== LOAD USERS FROM FIREBASE ========================
 function loadUsers() {
-    const users = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    db.ref('users').once('value')
+        .then(snapshot => {
+            const users = [];
+            snapshot.forEach(child => {
+                users.push(child.val());
+            });
+            displayUsers(users);
+        });
+}
+
+function displayUsers(users) {
     let html = `<h4>စုစုပေါင်း ကျောင်းသား: ${users.length} ဦး</h4>`;
-    if (users.length === 0) { html += '<p>ကျောင်းသားမရှိသေးပါ</p>'; }
-    else {
+    if (users.length === 0) {
+        html += '<p>ကျောင်းသားမရှိသေးပါ</p>';
+    } else {
         html += `<table><tr><th>Username</th><th>Password</th><th>Expire</th><th>Status</th><th></th></tr>`;
+        const today = new Date(); today.setHours(0,0,0,0);
         users.forEach(u => {
-            const today = new Date(); today.setHours(0,0,0,0);
             const exp = new Date(u.expireDate);
-            const status = today > exp ? '❌' : '✅';
-            html += `<tr><td>${u.username}</td><td>${u.password}</td><td>${u.expireDate}</td><td>${status}</td><td><button class="delete-btn" onclick="deleteUser('${u.username}')">Del</button></td></tr>`;
+            const status = today > exp ? '❌ Expired' : '✅ Active';
+            html += `<tr>
+                <td>${u.username}</td>
+                <td>${u.password}</td>
+                <td>${u.expireDate}</td>
+                <td>${status}</td>
+                <td><button class="delete-btn" onclick="deleteUser('${u.username}')">Del</button></td>
+            </tr>`;
         });
         html += '</table>';
     }
