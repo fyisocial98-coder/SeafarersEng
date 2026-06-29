@@ -1,38 +1,37 @@
-// ======================== MEPT FULL SYSTEM ========================
-const STORAGE_KEY = 'mept_all_users';
-
-// ======================== USER AUTH ========================
-function userLogin() {
+// ======================== USER LOGIN (Firebase) ========================
+async function userLogin() {
     const username = document.getElementById('loginUsername').value.trim();
     const key = document.getElementById('loginKey').value.trim();
     if (!username || !key) {
         document.getElementById('loginStatus').innerHTML = '<p style="color:red;">⚠️ Username နှင့် Key ထည့်ပါ</p>';
         return;
     }
-    const users = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const user = users.find(u => u.username === username && u.password === key);
-    if (!user) {
-        document.getElementById('loginStatus').innerHTML = '<p style="color:red;">❌ Username (သို့) Key မှားယွင်းနေပါသည်</p>';
-        return;
+    try {
+        // Firebase မှ user data ကို တစ်ကြိမ်ဆွဲယူခြင်း
+        const snapshot = await db.ref('users/' + username).once('value');
+        if (!snapshot.exists()) {
+            document.getElementById('loginStatus').innerHTML = '<p style="color:red;">❌ Username (သို့) Key မှားယွင်းနေပါသည်</p>';
+            return;
+        }
+        const user = snapshot.val();
+        // Password စစ်ဆေးခြင်း
+        if (user.password !== key) {
+            document.getElementById('loginStatus').innerHTML = '<p style="color:red;">❌ Username (သို့) Key မှားယွင်းနေပါသည်</p>';
+            return;
+        }
+        // သက်တမ်းကုန်ရက် စစ်ဆေးခြင်း
+        const today = new Date(); today.setHours(0,0,0,0);
+        const expireDate = new Date(user.expireDate);
+        if (today > expireDate) {
+            document.getElementById('loginStatus').innerHTML = `<p style="color:red;">❌ သက်တမ်းကုန်သွားပါပြီ (${user.expireDate})</p>`;
+            return;
+        }
+        // အောင်မြင်ပါက Practice Section ပြသခြင်း (ယခင်အတိုင်း)
+        // ...
+    } catch (error) {
+        document.getElementById('loginStatus').innerHTML = '<p style="color:red;">❌ Network Error</p>';
+        console.error(error);
     }
-    const today = new Date(); today.setHours(0,0,0,0);
-    const expireDate = new Date(user.expireDate);
-    if (today > expireDate) {
-        document.getElementById('loginStatus').innerHTML = `<p style="color:red;">❌ သက်တမ်းကုန်သွားပါပြီ (${user.expireDate})</p>`;
-        return;
-    }
-    const remainingDays = Math.ceil((expireDate - today) / (1000 * 60 * 60 * 24));
-    document.getElementById('loginSection').style.display = 'none';
-    document.getElementById('practiceSection').style.display = 'block';
-    document.getElementById('previewSection').style.display = 'none';
-    document.getElementById('premiumUnlockedMsg').style.display = 'block';
-    document.getElementById('userInfo').innerHTML = `
-        <span>👤 <strong>${user.username}</strong></span>
-        <span>📅 Expires: ${user.expireDate}</span>
-        <span>⏳ ${remainingDays} days left</span>
-        <button class="logout-btn" onclick="userLogout()">Logout</button>
-    `;
-    initAllSections();
 }
 function userLogout() {
     document.getElementById('loginSection').style.display = 'block';
